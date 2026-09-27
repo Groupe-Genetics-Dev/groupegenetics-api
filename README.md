@@ -7,6 +7,36 @@
 
 ---
 
+## ⚡ Démarrage rapide
+
+### 🐳 Avec Docker (recommandé)
+
+Prérequis : Docker + Docker Compose v2.
+
+```bash
+cp .env.example .env          # puis renseigner SECRET_KEY, SENDINBLUE_API_KEY...
+docker compose up -d --build  # lance PostgreSQL + l'API
+docker compose logs -f api    # suivre les logs
+```
+
+- Les migrations Alembic (`alembic upgrade head`) sont appliquées automatiquement au démarrage du conteneur.
+- API : http://localhost:8000 — Swagger : http://localhost:8000/docs
+- Les données PostgreSQL (`postgres_data`) et les rapports PDF (`reports_data`) sont conservés dans des volumes Docker.
+- Arrêter : `docker compose down` (ajouter `-v` pour supprimer aussi les données).
+
+### 💻 En local (sans Docker)
+
+Prérequis : Python 3.11, PostgreSQL 12+.
+
+```bash
+python -m venv venv && source venv/bin/activate   # Windows : venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env    # remplacer "@db:" par "@localhost:" dans POSTGRES_URL
+createdb genetics_incidents
+alembic upgrade head
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
 ## 📋 Table des Matières
 
 - [À Propos](#-à-propos)
@@ -301,22 +331,11 @@ Les emails suivants ont accès aux fonctions CEO :
 
 ### 🐳 Docker (Recommandé)
 
-```dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-EXPOSE 8000
-
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
+Le projet fournit un `Dockerfile` (multi-stage) et un `docker-compose.yml` (API + PostgreSQL).
+Voir [Démarrage rapide](#-démarrage-rapide).
 
 ```bash
-docker build -t genetics-api .
-docker run -p 8000:8000 --env-file .env genetics-api
+docker compose up -d --build
 ```
 
 ### ☁️ Heroku

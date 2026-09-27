@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: groupegenetics-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-genetics}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-genetics}
+      POSTGRES_DB: ${POSTGRES_DB:-genetics_incidents}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    image: groupegenetics-api
+    container_name: groupegenetics-api
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - reports_data:/app/reports
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  reports_data:
