@@ -23,6 +23,10 @@ services:
     container_name: groupegenetics-api
     restart: unless-stopped
     env_file: .env
+    # DNS publics pour joindre smtp.hostinger.com même si le DNS de Docker Desktop échoue
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
