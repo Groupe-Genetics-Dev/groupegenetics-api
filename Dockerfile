@@ -1,34 +1,20 @@
-# ---------- Étape 1 : compilation des dépendances ----------
-FROM python:3.11-slim AS builder
-
-ENV PIP_NO_CACHE_DIR=1
-
-# psycopg2 (non-binaire) doit être compilé : il faut gcc + headers libpq
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY requirements.txt .
-RUN pip wheel --wheel-dir /wheels -r requirements.txt
-
-
-# ---------- Étape 2 : image d'exécution ----------
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
     MPLBACKEND=Agg
 
 WORKDIR /app
 
-# Seule la librairie cliente PostgreSQL est nécessaire à l'exécution
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends libpq5 \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY --from=builder /wheels /wheels
-RUN pip install --no-index --find-links=/wheels /wheels/* && rm -rf /wheels
+# Aucun paquet système (apt-get) n'est nécessaire : psycopg2 est remplacé par
+# psycopg2-binary (même module, libpq incluse), toutes les dépendances
+# s'installent en wheels précompilées via HTTPS.
+COPY requirements.txt .
+RUN sed 's/^psycopg2==/psycopg2-binary==/' requirements.txt > /tmp/requirements.txt \
+    && pip install --only-binary=:all: -r /tmp/requirements.txt \
+    && rm /tmp/requirements.txt
 
 COPY . .
 RUN chmod +x docker-entrypoint.sh && mkdir -p reports
