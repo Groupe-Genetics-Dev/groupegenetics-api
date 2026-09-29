@@ -5,6 +5,7 @@ import html as html_lib
 import os
 import re
 import smtplib
+import socket
 import ssl
 from email.message import EmailMessage
 from email.utils import formataddr, make_msgid
@@ -13,7 +14,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.hostinger.com")
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.hostinger.com").strip().strip("\"'")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
 # "ssl" (port 465), "starttls" (port 587) ou "none" (tests locaux uniquement)
 SMTP_SECURITY = os.getenv("SMTP_SECURITY", "ssl").lower()
@@ -87,6 +88,13 @@ def _diagnose(test_to: str | None) -> int:
           + (" - attention : espaces au début/à la fin" if SMTP_PASSWORD != SMTP_PASSWORD.strip() else "")
           + (" - attention : guillemets inclus" if SMTP_PASSWORD[:1] in "\"'" else ""))
     print(f"Expéditeur : {MAIL_FROM_NAME} <{MAIL_FROM}>")
+    try:
+        ip = socket.gethostbyname(SMTP_HOST)
+        print(f"DNS        : {SMTP_HOST} -> {ip}")
+    except socket.gaierror as e:
+        print(f"❌ Nom de serveur introuvable ({SMTP_HOST!r}) : {e} - vérifiez SMTP_HOST dans le .env, "
+              "puis le DNS de Docker (redémarrez Docker Desktop, désactivez le VPN)")
+        return 1
     try:
         context = ssl.create_default_context()
         if SMTP_SECURITY == "ssl":
