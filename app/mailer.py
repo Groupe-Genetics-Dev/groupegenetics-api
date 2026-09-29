@@ -35,7 +35,7 @@ INCIDENT_ALERT_RECIPIENTS = _recipients("INCIDENT_ALERT_RECIPIENTS", "support@gr
 NEW_ACCOUNT_RECIPIENTS = _recipients("NEW_ACCOUNT_RECIPIENTS", "support@groupegenetics.com")
 # Liens insérés dans les e-mails
 SITE_LOGIN_URL = os.getenv("SITE_LOGIN_URL", "http://localhost:3001/support/login")
-ADMIN_ACCOUNTS_URL = os.getenv("ADMIN_ACCOUNTS_URL", "http://localhost:3000/accounts")
+ADMIN_ACCOUNTS_URL = os.getenv("ADMIN_ACCOUNTS_URL", "http://localhost:3001/support/admin/accounts")
 CONTACT_RECIPIENTS = _recipients("CONTACT_RECIPIENTS", "contact@groupegenetics.com,admin@groupegenetics.com")
 
 

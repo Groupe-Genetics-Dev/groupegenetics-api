@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse, FileResponse
@@ -141,9 +142,10 @@ def download_ceo_report(
     start_date = date_range.start_date
     end_date = date_range.end_date
 
+    # end_date est inclusive : on prend tout jusqu'au lendemain 00:00
     incidents = db.query(Incident).filter(
         Incident.createdAt >= start_date,
-        Incident.createdAt <= end_date
+        Incident.createdAt < end_date + timedelta(days=1)
     ).all()
 
     if not incidents:
