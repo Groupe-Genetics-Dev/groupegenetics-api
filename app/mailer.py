@@ -32,6 +32,7 @@ def _recipients(env_name: str, default: str) -> list[str]:
 
 # Destinataires internes
 INCIDENT_ALERT_RECIPIENTS = _recipients("INCIDENT_ALERT_RECIPIENTS", "support@groupegenetics.com")
+NEW_ACCOUNT_RECIPIENTS = _recipients("NEW_ACCOUNT_RECIPIENTS", "support@groupegenetics.com")
 CONTACT_RECIPIENTS = _recipients("CONTACT_RECIPIENTS", "contact@groupegenetics.com,admin@groupegenetics.com")
 
 

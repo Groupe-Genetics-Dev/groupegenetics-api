@@ -33,6 +33,10 @@ class UserOut(UserBase):
         from_attributes = True
 
 
+class UserMe(UserOut):
+    role: str
+
+
 class UserWithIncidents(UserOut):
     incidents: List[IncidentOut] = []
 

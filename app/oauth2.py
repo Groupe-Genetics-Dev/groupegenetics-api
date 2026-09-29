@@ -19,6 +19,14 @@ ALGORITHM = settings.algorithm
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
 
 
+def is_admin(user: User) -> bool:
+    return user.email.lower() in settings.admin_email_list
+
+
+def user_role(user: User) -> str:
+    return "admin" if is_admin(user) else "client"
+
+
 def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -73,13 +81,7 @@ def decode_token(token: str):
 def get_current_ceo_user(
     current_user: User = Depends(get_current_user)
 ):
-    ceo_emails = [
-        "diallo30amadoukorka@gmail.com",
-        "support@groupegenetics.com",
-        "mohamed.thialaw@groupegenetics.com"
-    ]
-
-    if current_user.email not in ceo_emails:
+    if not is_admin(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Action réservée au CEO de l'entreprise"

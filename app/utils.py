@@ -11,7 +11,7 @@ from passlib.context import CryptContext
 from random import randint
 from html import escape
 
-from app.mailer import CONTACT_RECIPIENTS, INCIDENT_ALERT_RECIPIENTS, send_email
+from app.mailer import CONTACT_RECIPIENTS, INCIDENT_ALERT_RECIPIENTS, NEW_ACCOUNT_RECIPIENTS, send_email
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -36,6 +36,44 @@ async def send_otp_email(to_email: str, otp: str):
     </div>
     """
     await send_email([to_email], subject, html_content)
+
+
+async def send_welcome_email(user):
+    subject = "👋 Bienvenue sur l'espace support Groupe Genetics"
+    html_content = f"""
+    <div style="font-family: Arial, sans-serif;">
+      <h2>Bonjour {escape(user.name)},</h2>
+      <p>Votre compte sur l'espace support <strong>Groupe Genetics</strong> a bien été créé.</p>
+      <p>Vous pouvez désormais vous connecter avec l'adresse <strong>{escape(user.email)}</strong> pour :</p>
+      <ul>
+        <li>déclarer vos incidents techniques ;</li>
+        <li>suivre leur traitement en temps réel ;</li>
+        <li>être informé par e-mail de leur résolution.</li>
+      </ul>
+      <p>Pour toute question, répondez simplement à cet e-mail.</p>
+      <br/>
+      <p>Cordialement,</p>
+      <p>L'équipe Support Groupe Genetics</p>
+    </div>
+    """
+    await send_email([user.email], subject, html_content)
+
+
+async def send_new_account_admin_email(user):
+    subject = f"🆕 Nouveau compte client : {user.name}"
+    html_content = f"""
+    <div style="font-family: Arial, sans-serif;">
+      <h2>🆕 Un nouveau compte a été créé sur l'espace support</h2>
+      <ul>
+        <li><strong>Nom :</strong> {escape(user.name)}</li>
+        <li><strong>Email :</strong> {escape(user.email)}</li>
+        <li><strong>Entreprise :</strong> {escape(user.company or "-")}</li>
+        <li><strong>Téléphone :</strong> {escape(user.phone or "-")}</li>
+        <li><strong>Date :</strong> {user.createdAt.strftime('%Y-%m-%d %H:%M:%S')}</li>
+      </ul>
+    </div>
+    """
+    await send_email(NEW_ACCOUNT_RECIPIENTS, subject, html_content, reply_to=user.email)
 
 
 async def send_incident_alert_email(incident, user):

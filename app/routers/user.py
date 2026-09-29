@@ -1,18 +1,21 @@
+import asyncio
+import logging
 from typing import Annotated
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 import uuid
 from datetime import datetime, timedelta
 from uuid import UUID
-from app.schemas.user import  ResetPasswordRequest, UserCreate, UserOut, UserUpdate, UserBase
+from app.schemas.user import  ResetPasswordRequest, UserCreate, UserMe, UserOut, UserUpdate, UserBase
 from app.model import  User
 from app.postgres_connect import get_db
-from app.oauth2 import  get_current_user
+from app.oauth2 import  get_current_user, user_role
 from app.utils import generate_otp, hashed
-from app.utils import send_otp_email
+from app.utils import send_otp_email, send_new_account_admin_email, send_welcome_email
 
 
 router = APIRouter(prefix="/users", tags=["Users"])
+logger = logging.getLogger(__name__)
 otp_store = {}
 
 @router.post("/create-user", response_model=UserOut, status_code=status.HTTP_201_CREATED)
@@ -33,12 +36,20 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+
+    # E-mails de bienvenue (client) et de notification (admin) : un échec d'envoi
+    # ne doit pas empêcher la création du compte
+    for send in (send_welcome_email, send_new_account_admin_email):
+        try:
+            asyncio.run(send(new_user))
+        except Exception:
+            logger.exception("Envoi de l'e-mail %s impossible pour %s", send.__name__, new_user.email)
     return new_user
 
 
-@router.get("/me", response_model=UserOut)
+@router.get("/me", response_model=UserMe)
 async def get_current_user(current_user: User = Depends(get_current_user)):
-    return current_user
+    return UserMe(**UserOut.model_validate(current_user).model_dump(), role=user_role(current_user))
 
 
 # Mise à jour complète du compte

@@ -9,6 +9,12 @@ class Settings(BaseSettings):
     secret_key: str
     algorithm: str = "HS256"
     cors_origin:str="*"
+    # Comptes administrateurs (accès au tableau de bord), séparés par des virgules
+    admin_emails: str = "diallo30amadoukorka@gmail.com,support@groupegenetics.com,mohamed.thialaw@groupegenetics.com"
+
+    @property
+    def admin_email_list(self) -> list[str]:
+        return [e.strip().lower() for e in self.admin_emails.split(",") if e.strip()]
 
   
 

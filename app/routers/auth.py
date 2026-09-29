@@ -31,7 +31,8 @@ async def login_for_access_token(user_credentials: Annotated[OAuth2PasswordReque
 
     return {"access_token": access_token, 
             "token_type": "bearer",
-            "user_name": user.name
+            "user_name": user.name,
+            "role": oauth2.user_role(user),
     }
     
 
