@@ -9,13 +9,11 @@ from reportlab.lib import colors
 from reportlab.lib.units import inch
 from passlib.context import CryptContext
 from random import randint
-import os
-import httpx
-from dotenv import load_dotenv
-load_dotenv()
+from html import escape
+
+from app.mailer import CONTACT_RECIPIENTS, INCIDENT_ALERT_RECIPIENTS, send_email
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-SENDINBLUE_API_KEY = os.getenv("SENDINBLUE_API_KEY")
 
 def hashed(password: str):
     return pwd_context.hash(password)
@@ -27,7 +25,6 @@ def generate_otp():
     return f"{randint(100000, 999999)}"
 
 async def send_otp_email(to_email: str, otp: str):
-    url = "https://api.brevo.com/v3/smtp/email"
     subject = "🔐 Code OTP pour réinitialisation de mot de passe"
     html_content = f"""
     <div>
@@ -38,27 +35,10 @@ async def send_otp_email(to_email: str, otp: str):
       <p>Si vous n'avez pas demandé ce code, veuillez ignorer cet email.</p>
     </div>
     """
-    data = {
-        "sender": {
-            "name": "Groupe Genetics Support",
-            "email": "diallo30amadoukorka@gmail.com"
-        },
-        "to": [{"email": to_email}],
-        "subject": subject,
-        "htmlContent": html_content,
-    }
-    headers = {
-        "api-key": SENDINBLUE_API_KEY,
-        "Content-Type": "application/json"
-    }
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(url, json=data, headers=headers)
-        resp.raise_for_status()
-        return resp.json()
-    
+    await send_email([to_email], subject, html_content)
+
 
 async def send_incident_alert_email(incident, user):
-    url = "https://api.brevo.com/v3/smtp/email"
     subject = "🚨 Nouvel incident signalé sur la plateforme Groupe Genetics"
 
     html_content = f"""
@@ -66,53 +46,31 @@ async def send_incident_alert_email(incident, user):
       <h2>🚨 Un nouvel incident a été signalé</h2>
       <p><strong><u>Détails de l'incident</u></strong></p>
       <ul>
-        <li><strong>Titre :</strong> {incident.title}</li>
-        <li><strong>Description :</strong> {incident.description}</li>
+        <li><strong>Titre :</strong> {escape(incident.title)}</li>
+        <li><strong>Description :</strong> {escape(incident.description)}</li>
         <li><strong>Priorité :</strong> {incident.priority.value}</li>
         <li><strong>Catégorie :</strong> {incident.category.value}</li>
         <li><strong>Date :</strong> {incident.createdAt.strftime('%Y-%m-%d %H:%M:%S')}</li>
       </ul>
       <p><strong><u>Informations de l'utilisateur</u></strong></p>
       <ul>
-        <li><strong>Nom :</strong> {user.name}</li>
-        <li><strong>Email :</strong> {user.email}</li>
-        <li><strong>Entreprise :</strong> {user.company}</li>
-        <li><strong>Téléphone :</strong> {user.phone}</li>
+        <li><strong>Nom :</strong> {escape(user.name)}</li>
+        <li><strong>Email :</strong> {escape(user.email)}</li>
+        <li><strong>Entreprise :</strong> {escape(user.company or "-")}</li>
+        <li><strong>Téléphone :</strong> {escape(user.phone or "-")}</li>
       </ul>
     </div>
     """
-
-    data = {
-        "sender": {
-            "name": "Support Groupe Genetics",
-            "email": "diallo30amadoukorka@gmail.com"  
-        },
-        "to": [
-            {"email": "diallo30amadoukorka@gmail.com"},
-            {"email": "support@groupegenetics.com"}
-        ],  
-        "subject": subject,
-        "htmlContent": html_content,
-    }
-
-    headers = {
-        "api-key": SENDINBLUE_API_KEY,
-        "Content-Type": "application/json"
-    }
-
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(url, json=data, headers=headers)
-        resp.raise_for_status()
-        return resp.json()
+    # "Répondre" dans la boîte support écrit directement au client
+    await send_email(INCIDENT_ALERT_RECIPIENTS, subject, html_content, reply_to=user.email)
 
 
 async def send_incident_resolved_email(user_email: str, user_name: str, incident_title: str):
-    url = "https://api.brevo.com/v3/smtp/email"
     subject = "✅ Votre incident a été résolu"
     html_content = f"""
     <div>
-      <h2>Bonjour {user_name},</h2>
-      <p>Votre incident intitulé <strong>{incident_title}</strong> a été marqué comme <strong>terminé</strong> par notre équipe.</p>
+      <h2>Bonjour {escape(user_name)},</h2>
+      <p>Votre incident intitulé <strong>{escape(incident_title)}</strong> a été marqué comme <strong>terminé</strong> par notre équipe.</p>
       <p>Merci de bien vouloir vérifier et tester si le problème est résolu.</p>
       <p>Si vous rencontrez toujours un problème, n’hésitez pas à nous recontacter.</p>
       <br/>
@@ -120,59 +78,22 @@ async def send_incident_resolved_email(user_email: str, user_name: str, incident
       <p>L'équipe Support</p>
     </div>
     """
-    data = {
-        "sender": {
-            "name": "Groupe Genetics Support",
-            "email": "diallo30amadoukorka@gmail.com"
-        },
-        "to": [{"email": user_email}],
-        "subject": subject,
-        "htmlContent": html_content,
-    }
-    headers = {
-        "api-key": SENDINBLUE_API_KEY,
-        "Content-Type": "application/json"
-    }
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(url, json=data, headers=headers)
-        resp.raise_for_status()
-        return resp.json()
-    
-    
+    await send_email([user_email], subject, html_content)
+
 
 async def send_contact_email(name: str, email: str, subject: str, message: str):
-    url = "https://api.brevo.com/v3/smtp/email"
     html_content = f"""
     <div>
       <h2>📩 Nouveau message de contact</h2>
-      <p><strong>Nom :</strong> {name}</p>
-      <p><strong>Email :</strong> {email}</p>
-      <p><strong>Sujet :</strong> {subject}</p>
+      <p><strong>Nom :</strong> {escape(name)}</p>
+      <p><strong>Email :</strong> {escape(email)}</p>
+      <p><strong>Sujet :</strong> {escape(subject)}</p>
       <p><strong>Message :</strong></p>
-      <p>{message}</p>
+      <p>{escape(message).replace(chr(10), "<br/>")}</p>
     </div>
     """
-    data = {
-        "sender": {
-            "name": name,
-            "email": email  
-        },
-        "to": [
-            {"email": "diallo30amadoukorka@gmail.com"},
-            {"email": "contact@groupegenetics.com"},
-            {"email": "admin@groupegenetics.com"}
-        ],
-        "subject": f"📩 Message de contact : {subject}",
-        "htmlContent": html_content,
-    }
-    headers = {
-        "api-key": SENDINBLUE_API_KEY,
-        "Content-Type": "application/json"
-    }
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(url, json=data, headers=headers)
-        resp.raise_for_status()
-        return resp.json()
+    # Le message part de notre boîte SMTP ; "Répondre" écrit au visiteur
+    await send_email(CONTACT_RECIPIENTS, f"📩 Message de contact : {subject}", html_content, reply_to=email)
 
 
 

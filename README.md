@@ -14,7 +14,7 @@
 Prérequis : Docker + Docker Compose v2.
 
 ```bash
-cp .env.example .env          # puis renseigner SECRET_KEY, SENDINBLUE_API_KEY...
+cp .env.example .env          # puis renseigner SECRET_KEY et SMTP_PASSWORD
 docker compose up -d --build  # lance PostgreSQL + l'API
 docker compose logs -f api    # suivre les logs
 ```
@@ -110,7 +110,7 @@ Cette API FastAPI permet au **Groupe Genetics** de gérer efficacement les incid
 
 ### **Notifications**
 - **httpx** - Client HTTP asynchrone
-- **Brevo (SendinBlue)** - Service d'emailing
+- **SMTP** (smtplib) - Envoi des emails via la boîte support
 
 ### **Rapports & Analytics**
 - **ReportLab** - Génération de PDF
@@ -127,7 +127,7 @@ Cette API FastAPI permet au **Groupe Genetics** de gérer efficacement les incid
 ### Prérequis
 - Python 3.9+
 - PostgreSQL 12+
-- Compte Brevo (SendinBlue) pour les emails
+- Une boîte e-mail avec accès SMTP (ex. Hostinger) pour les emails
 
 ### 1. Cloner le Repository
 ```bash
@@ -175,14 +175,19 @@ ACCESS_TOKEN_EXPIRE_MINUTES=1440
 # 🌐 CORS
 CORS_ORIGIN=*
 
-# 📧 Email (Brevo/SendinBlue)
-SENDINBLUE_API_KEY=your-brevo-api-key-here
+# 📧 Email (SMTP Hostinger)
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
+SMTP_SECURITY=ssl
+SMTP_USER=support@groupegenetics.com
+SMTP_PASSWORD=mot-de-passe-de-la-boite
 ```
 
-### 🔑 Configuration Brevo
-1. Créez un compte sur [Brevo](https://www.brevo.com)
-2. Générez une clé API SMTP
-3. Ajoutez la clé dans votre fichier `.env`
+### 🔑 Configuration SMTP (Hostinger)
+1. Dans hPanel → Emails, récupérez les paramètres SMTP de la boîte (serveur `smtp.hostinger.com`, port `465`, SSL)
+2. Renseignez `SMTP_USER` (adresse complète) et `SMTP_PASSWORD` dans le `.env`
+3. `MAIL_FROM` doit être cette même adresse ou un de ses alias, sinon Hostinger refuse l'envoi
+4. Les destinataires internes se règlent avec `INCIDENT_ALERT_RECIPIENTS` et `CONTACT_RECIPIENTS`
 
 ## 🎮 Utilisation
 

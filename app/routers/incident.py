@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse, FileResponse
 from sqlalchemy.orm import Session
 import asyncio
+import logging
 
 from app.postgres_connect import get_db
 from app.model import Incident, User
@@ -21,6 +22,7 @@ REPORTS_DIR = os.path.join(os.path.dirname(__file__), "../../reports")
 os.makedirs(REPORTS_DIR, exist_ok=True)
 
 router = APIRouter(prefix="/incidents", tags=["Incidents"])
+logger = logging.getLogger(__name__)
 
 # ✅ Création d’un incident
 @router.post("/create-incident", response_model=IncidentOut)
@@ -34,7 +36,11 @@ def create_incident(
     db.commit()
     db.refresh(new_incident)
 
-    asyncio.run(send_incident_alert_email(new_incident, current_user))
+    try:
+        asyncio.run(send_incident_alert_email(new_incident, current_user))
+    except Exception:
+        # L'incident est enregistré : un échec d'envoi ne doit pas renvoyer d'erreur au client
+        logger.exception("Envoi de l'alerte e-mail impossible pour l'incident %s", new_incident.id)
     return new_incident
 
 # 📄 Liste des incidents de l’utilisateur connecté
@@ -110,7 +116,10 @@ def update_incident_status(
     if payload.status == IncidentStatus.TERMINE:
         user = incident.user
         if user:
-            asyncio.run(send_incident_resolved_email(user.email, user.name, incident.title))
+            try:
+                asyncio.run(send_incident_resolved_email(user.email, user.name, incident.title))
+            except Exception:
+                logger.exception("Envoi de l'e-mail de résolution impossible pour l'incident %s", incident.id)
 
     return incident
 
