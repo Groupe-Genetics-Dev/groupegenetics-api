@@ -11,7 +11,9 @@ from passlib.context import CryptContext
 from random import randint
 from html import escape
 
-from app.mailer import CONTACT_RECIPIENTS, INCIDENT_ALERT_RECIPIENTS, NEW_ACCOUNT_RECIPIENTS, send_email
+from app.mailer import (
+    ADMIN_ACCOUNTS_URL, CONTACT_RECIPIENTS, INCIDENT_ALERT_RECIPIENTS, NEW_ACCOUNT_RECIPIENTS, SITE_LOGIN_URL, send_email,
+)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -38,18 +40,14 @@ async def send_otp_email(to_email: str, otp: str):
     await send_email([to_email], subject, html_content)
 
 
-async def send_welcome_email(user):
-    subject = "👋 Bienvenue sur l'espace support Groupe Genetics"
+async def send_pending_account_email(user):
+    subject = "⏳ Votre compte Groupe Genetics est en cours de validation"
     html_content = f"""
     <div style="font-family: Arial, sans-serif;">
       <h2>Bonjour {escape(user.name)},</h2>
-      <p>Votre compte sur l'espace support <strong>Groupe Genetics</strong> a bien été créé.</p>
-      <p>Vous pouvez désormais vous connecter avec l'adresse <strong>{escape(user.email)}</strong> pour :</p>
-      <ul>
-        <li>déclarer vos incidents techniques ;</li>
-        <li>suivre leur traitement en temps réel ;</li>
-        <li>être informé par e-mail de leur résolution.</li>
-      </ul>
+      <p>Merci pour votre inscription sur l'espace support <strong>Groupe Genetics</strong>.</p>
+      <p>Votre compte (<strong>{escape(user.email)}</strong>) est <strong>en cours de validation</strong> par notre équipe.
+         Vous recevrez un e-mail dès qu'il sera activé : vous pourrez alors vous connecter pour déclarer et suivre vos incidents.</p>
       <p>Pour toute question, répondez simplement à cet e-mail.</p>
       <br/>
       <p>Cordialement,</p>
@@ -60,10 +58,10 @@ async def send_welcome_email(user):
 
 
 async def send_new_account_admin_email(user):
-    subject = f"🆕 Nouveau compte client : {user.name}"
+    subject = f"🆕 Nouveau compte à valider : {user.name}"
     html_content = f"""
     <div style="font-family: Arial, sans-serif;">
-      <h2>🆕 Un nouveau compte a été créé sur l'espace support</h2>
+      <h2>🆕 Un nouveau compte attend votre validation</h2>
       <ul>
         <li><strong>Nom :</strong> {escape(user.name)}</li>
         <li><strong>Email :</strong> {escape(user.email)}</li>
@@ -71,9 +69,48 @@ async def send_new_account_admin_email(user):
         <li><strong>Téléphone :</strong> {escape(user.phone or "-")}</li>
         <li><strong>Date :</strong> {user.createdAt.strftime('%Y-%m-%d %H:%M:%S')}</li>
       </ul>
+      <p><a href="{ADMIN_ACCOUNTS_URL}">Valider ou refuser ce compte dans le tableau de bord</a></p>
     </div>
     """
     await send_email(NEW_ACCOUNT_RECIPIENTS, subject, html_content, reply_to=user.email)
+
+
+async def send_account_approved_email(user):
+    subject = "✅ Votre compte Groupe Genetics est activé"
+    html_content = f"""
+    <div style="font-family: Arial, sans-serif;">
+      <h2>Bonjour {escape(user.name)},</h2>
+      <p>Bonne nouvelle : votre compte sur l'espace support <strong>Groupe Genetics</strong> a été <strong>validé</strong>.</p>
+      <p>Vous pouvez dès maintenant vous connecter avec l'adresse <strong>{escape(user.email)}</strong> pour :</p>
+      <ul>
+        <li>déclarer vos incidents techniques ;</li>
+        <li>suivre leur traitement en temps réel ;</li>
+        <li>être informé par e-mail de leur résolution.</li>
+      </ul>
+      <p><a href="{SITE_LOGIN_URL}">Se connecter à l'espace support</a></p>
+      <br/>
+      <p>Cordialement,</p>
+      <p>L'équipe Support Groupe Genetics</p>
+    </div>
+    """
+    await send_email([user.email], subject, html_content)
+
+
+async def send_account_rejected_email(user, reason: str | None = None):
+    subject = "Votre demande de compte Groupe Genetics"
+    reason_html = f"<p><strong>Motif :</strong> {escape(reason)}</p>" if reason else ""
+    html_content = f"""
+    <div style="font-family: Arial, sans-serif;">
+      <h2>Bonjour {escape(user.name)},</h2>
+      <p>Nous n'avons pas pu valider votre demande de compte sur l'espace support <strong>Groupe Genetics</strong>.</p>
+      {reason_html}
+      <p>Si vous pensez qu'il s'agit d'une erreur, répondez simplement à cet e-mail : notre équipe vous recontactera.</p>
+      <br/>
+      <p>Cordialement,</p>
+      <p>L'équipe Support Groupe Genetics</p>
+    </div>
+    """
+    await send_email([user.email], subject, html_content)
 
 
 async def send_incident_alert_email(incident, user):

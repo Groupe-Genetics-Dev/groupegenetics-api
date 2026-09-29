@@ -23,6 +23,8 @@ async def login_for_access_token(user_credentials: Annotated[OAuth2PasswordReque
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detail="Invalid Credentials")
 
+    oauth2.ensure_account_active(user)
+
     access_token = oauth2.create_access_token(data={
         "user_id": str(user.id), 
         "user_name": user.name

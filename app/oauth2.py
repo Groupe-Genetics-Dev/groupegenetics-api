@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 from app.config import settings
 from app.postgres_connect import get_db
-from app.model import User
+from app.model import AccountStatus, User
 from app.schemas.token import TokenData
 
 
@@ -25,6 +25,20 @@ def is_admin(user: User) -> bool:
 
 def user_role(user: User) -> str:
     return "admin" if is_admin(user) else "client"
+
+
+ACCOUNT_STATUS_MESSAGES = {
+    AccountStatus.PENDING: "Votre compte est en cours de validation. Vous recevrez un e-mail dès qu'il sera activé.",
+    AccountStatus.REJECTED: "Votre demande de compte a été refusée. Contactez support@groupegenetics.com pour plus d'informations.",
+}
+
+
+def ensure_account_active(user: User) -> None:
+    """Refuse l'accès aux comptes clients non validés (les administrateurs passent toujours)."""
+    if is_admin(user) or user.account_status == AccountStatus.APPROVED:
+        return
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                        detail=ACCOUNT_STATUS_MESSAGES[user.account_status])
 
 
 def create_access_token(data: dict):
@@ -66,6 +80,7 @@ def get_current_user(token: Annotated[str, Depends(oauth2_schema)],
     if user is None:
         raise credentials_exception
 
+    ensure_account_active(user)
     return user
 
 

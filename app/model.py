@@ -33,6 +33,11 @@ class IncidentStatus(PyEnum):
     EN_TRAITEMENT = "EN_TRAITEMENT"
     TERMINE = "TERMINE"
 
+class AccountStatus(PyEnum):
+    PENDING = "PENDING"      # en attente de validation par un administrateur
+    APPROVED = "APPROVED"    # validé : peut se connecter
+    REJECTED = "REJECTED"    # refusé
+
 class User(Base):
     __tablename__ = "users"
 
@@ -46,6 +51,10 @@ class User(Base):
     updatedAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     otp_code: Mapped[Optional[str]] = mapped_column(String(length=6), nullable=True)
     otp_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    account_status: Mapped[AccountStatus] = mapped_column(
+        Enum(AccountStatus), nullable=False, default=AccountStatus.PENDING, server_default=AccountStatus.PENDING.value
+    )
+    reviewedAt: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 
 

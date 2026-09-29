@@ -4,6 +4,7 @@ from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
 from app.schemas.incident import IncidentOut
+from app.model import AccountStatus
 
 
 class UserBase(BaseModel):
@@ -28,9 +29,15 @@ class UserOut(UserBase):
     id: UUID
     createdAt: datetime
     updatedAt: datetime
+    account_status: AccountStatus
+    reviewedAt: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+
+class AccountReject(BaseModel):
+    reason: Optional[str] = None
 
 
 class UserMe(UserOut):
