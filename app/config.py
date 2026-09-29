@@ -9,12 +9,18 @@ class Settings(BaseSettings):
     secret_key: str
     algorithm: str = "HS256"
     cors_origin:str="*"
-    # Comptes administrateurs (accès au tableau de bord), séparés par des virgules
-    admin_emails: str = "diallo30amadoukorka@gmail.com,support@groupegenetics.com,mohamed.thialaw@groupegenetics.com"
+    # Compte administrateur principal : identifiants fixés ici, le compte est créé
+    # (ou son mot de passe mis à jour) à chaque démarrage de l'API
+    admin_email: str = "support@groupegenetics.com"
+    admin_password: str = ""
+    admin_name: str = "Administrateur Genetics"
+    # Autres adresses ayant le rôle administrateur, séparées par des virgules
+    admin_emails: str = "diallo30amadoukorka@gmail.com,mohamed.thialaw@groupegenetics.com"
 
     @property
     def admin_email_list(self) -> list[str]:
-        return [e.strip().lower() for e in self.admin_emails.split(",") if e.strip()]
+        emails = [self.admin_email, *self.admin_emails.split(",")]
+        return [e.strip().lower() for e in emails if e.strip()]
 
   
 

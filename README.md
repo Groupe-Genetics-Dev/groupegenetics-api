@@ -326,11 +326,21 @@ app/
 - **OTP temporaire** (5min) pour réinitialisation
 - **Permissions par rôle** (CEO vs utilisateur standard)
 
-### 👑 Comptes Administrateurs
+### 👑 Compte Administrateur
 
-Les emails suivants ont accès aux fonctions CEO :
-- `support@groupegenetics.com`
-- `mohamed.thialaw@groupegenetics.com`
+Les identifiants de l'administrateur sont **fixés dans le `.env`** :
+
+```env
+ADMIN_EMAIL=support@groupegenetics.com
+ADMIN_PASSWORD=un-mot-de-passe-solide
+ADMIN_NAME=Administrateur Genetics
+```
+
+- Au démarrage, l'API crée ce compte (déjà validé) s'il n'existe pas, ou met à jour son mot de passe s'il a changé dans le `.env`.
+- Pour changer le mot de passe : modifier `ADMIN_PASSWORD` puis redémarrer l'API (`docker compose up -d`).
+- Sans `ADMIN_PASSWORD`, aucun compte administrateur n'est créé (un avertissement s'affiche dans les logs).
+- `ADMIN_EMAILS` (facultatif) donne aussi le rôle administrateur à d'autres adresses.
+- Les adresses administrateur ne peuvent pas être utilisées pour s'inscrire depuis le site.
 
 ## 🚀 Déploiement
 

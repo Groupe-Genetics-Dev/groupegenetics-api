@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from rich.console import Console
 
 from app.routers import user, auth, incident, contact
+from app.seed_admin import ensure_admin_account
 
 console = Console()
 
@@ -13,6 +14,7 @@ console = Console()
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     console.print(":banana: [cyan underline]Groupe Genetics Api is starting ...[/]")
+    ensure_admin_account()
     yield
     console.print(":mango: [bold red underline]Groupe Genetics Api shutting down ...[/]")
 

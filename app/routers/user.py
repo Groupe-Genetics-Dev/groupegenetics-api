@@ -8,8 +8,9 @@ from datetime import datetime, timedelta
 from uuid import UUID
 from app.schemas.user import  AccountReject, ResetPasswordRequest, UserCreate, UserMe, UserOut, UserUpdate, UserBase
 from app.model import  AccountStatus, User
+from app.config import settings
 from app.postgres_connect import get_db
-from app.oauth2 import  get_current_ceo_user, get_current_user, is_admin, user_role
+from app.oauth2 import  get_current_ceo_user, get_current_user, user_role
 from app.utils import generate_otp, hashed
 from app.utils import (
     send_account_approved_email, send_account_rejected_email, send_new_account_admin_email,
@@ -23,6 +24,11 @@ otp_store = {}
 
 @router.post("/create-user", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
+    # Les adresses administrateur ne peuvent pas être créées depuis l'inscription publique
+    if user.email.lower() in settings.admin_email_list:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Cette adresse est réservée à l'administration de Groupe Genetics.")
+
     user_exist = db.query(User).filter_by(email=user.email).first()
     if user_exist:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, 
@@ -37,16 +43,15 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
         phone=user.phone,
     )
     # Les comptes clients attendent la validation d'un administrateur
-    new_user.account_status = AccountStatus.APPROVED if is_admin(new_user) else AccountStatus.PENDING
+    new_user.account_status = AccountStatus.PENDING
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
 
     # E-mails "compte en cours de validation" (client) et "compte à valider" (admin) :
     # un échec d'envoi ne doit pas empêcher la création du compte
-    if new_user.account_status == AccountStatus.PENDING:
-        _send_quietly(send_pending_account_email, new_user)
-        _send_quietly(send_new_account_admin_email, new_user)
+    _send_quietly(send_pending_account_email, new_user)
+    _send_quietly(send_new_account_admin_email, new_user)
     return new_user
 
 
