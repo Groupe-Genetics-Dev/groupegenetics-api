@@ -1,7 +1,6 @@
-import asyncio
 import logging
 from typing import Annotated
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 import uuid
 from datetime import datetime, timedelta
@@ -9,6 +8,7 @@ from uuid import UUID
 from app.schemas.user import  AccountReject, ResetPasswordRequest, UserCreate, UserMe, UserOut, UserUpdate, UserBase
 from app.model import  AccountStatus, User
 from app.config import settings
+from app.mailer import send_in_background
 from app.postgres_connect import get_db
 from app.oauth2 import  get_current_ceo_user, get_current_user, user_role
 from app.utils import generate_otp, hashed
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 otp_store = {}
 
 @router.post("/create-user", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
+def create_user(user: UserCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     # Les adresses administrateur ne peuvent pas être créées depuis l'inscription publique
     if user.email.lower() in settings.admin_email_list:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
@@ -48,18 +48,11 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    # E-mails "compte en cours de validation" (client) et "compte à valider" (admin) :
-    # un échec d'envoi ne doit pas empêcher la création du compte
-    _send_quietly(send_pending_account_email, new_user)
-    _send_quietly(send_new_account_admin_email, new_user)
+    # E-mails "compte en cours de validation" (client) et "compte à valider" (admin),
+    # envoyés après la réponse : un échec d'envoi ne doit pas empêcher la création du compte
+    send_in_background(background_tasks, send_pending_account_email, new_user)
+    send_in_background(background_tasks, send_new_account_admin_email, new_user)
     return new_user
-
-
-def _send_quietly(send, *args):
-    try:
-        asyncio.run(send(*args))
-    except Exception:
-        logger.exception("Envoi de l'e-mail %s impossible", send.__name__)
 
 
 # 👥 Gestion des comptes (administrateurs)
@@ -91,18 +84,18 @@ def _review(user_id: UUID, new_status: AccountStatus, db: Session) -> User:
 
 
 @router.patch("/accounts/{user_id}/approve", response_model=UserOut)
-def approve_account(user_id: UUID, db: Session = Depends(get_db),
+def approve_account(user_id: UUID, background_tasks: BackgroundTasks, db: Session = Depends(get_db),
                     __admin: User = Depends(get_current_ceo_user)):
     user = _review(user_id, AccountStatus.APPROVED, db)
-    _send_quietly(send_account_approved_email, user)
+    send_in_background(background_tasks, send_account_approved_email, user)
     return user
 
 
 @router.patch("/accounts/{user_id}/reject", response_model=UserOut)
-def reject_account(user_id: UUID, payload: AccountReject | None = None, db: Session = Depends(get_db),
-                   __admin: User = Depends(get_current_ceo_user)):
+def reject_account(user_id: UUID, background_tasks: BackgroundTasks, payload: AccountReject | None = None,
+                   db: Session = Depends(get_db), __admin: User = Depends(get_current_ceo_user)):
     user = _review(user_id, AccountStatus.REJECTED, db)
-    _send_quietly(send_account_rejected_email, user, payload.reason if payload else None)
+    send_in_background(background_tasks, send_account_rejected_email, user, payload.reason if payload else None)
     return user
 
 

@@ -2,15 +2,18 @@
 
 import asyncio
 import html as html_lib
+import logging
 import os
 import re
 import smtplib
 import socket
 import ssl
 from email.message import EmailMessage
+from types import SimpleNamespace
 from email.utils import formataddr, make_msgid
 
 from dotenv import load_dotenv
+from sqlalchemy import inspect as sa_inspect
 
 load_dotenv()
 
@@ -78,6 +81,27 @@ def _send(to: list[str], subject: str, html: str, reply_to: str | None = None) -
 async def send_email(to: list[str], subject: str, html: str, reply_to: str | None = None) -> None:
     """Envoie un e-mail HTML (avec version texte) sans bloquer la boucle asyncio."""
     await asyncio.to_thread(_send, to, subject, html, reply_to)
+
+
+def _send_quietly(send, *args) -> None:
+    try:
+        asyncio.run(send(*args))
+    except Exception:
+        logging.getLogger(__name__).exception("Envoi de l'e-mail %s impossible", send.__name__)
+
+
+def _snapshot(value):
+    """Copie les colonnes d'un objet SQLAlchemy : la session est fermée quand la tâche s'exécute."""
+    state = sa_inspect(value, raiseerr=False)
+    if state is None or not hasattr(state, "mapper"):
+        return value
+    return SimpleNamespace(**{attr.key: getattr(value, attr.key) for attr in state.mapper.column_attrs})
+
+
+def send_in_background(background_tasks, send, *args) -> None:
+    """Planifie l'envoi après la réponse HTTP : l'utilisateur n'attend pas le serveur SMTP
+    et un échec d'envoi est seulement journalisé."""
+    background_tasks.add_task(_send_quietly, send, *(_snapshot(a) for a in args))
 
 
 def _diagnose(test_to: str | None) -> int:

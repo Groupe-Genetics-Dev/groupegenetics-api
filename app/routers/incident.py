@@ -1,12 +1,12 @@
 import os
 from datetime import timedelta
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse, FileResponse
 from sqlalchemy.orm import Session
-import asyncio
 import logging
 
+from app.mailer import send_in_background
 from app.postgres_connect import get_db
 from app.model import Incident, User
 from app.schemas.incident import (
@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 @router.post("/create-incident", response_model=IncidentOut)
 def create_incident(
     incident: IncidentCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -37,11 +38,8 @@ def create_incident(
     db.commit()
     db.refresh(new_incident)
 
-    try:
-        asyncio.run(send_incident_alert_email(new_incident, current_user))
-    except Exception:
-        # L'incident est enregistré : un échec d'envoi ne doit pas renvoyer d'erreur au client
-        logger.exception("Envoi de l'alerte e-mail impossible pour l'incident %s", new_incident.id)
+    # Alerte envoyée après la réponse : l'incident est enregistré même si l'envoi échoue
+    send_in_background(background_tasks, send_incident_alert_email, new_incident, current_user)
     return new_incident
 
 # 📄 Liste des incidents de l’utilisateur connecté
@@ -103,6 +101,7 @@ def delete_incident(
 def update_incident_status(
     incident_id: UUID,
     payload: IncidentStatusUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     __current_ceo: User = Depends(get_current_ceo_user)
 ):
@@ -117,10 +116,7 @@ def update_incident_status(
     if payload.status == IncidentStatus.TERMINE:
         user = incident.user
         if user:
-            try:
-                asyncio.run(send_incident_resolved_email(user.email, user.name, incident.title))
-            except Exception:
-                logger.exception("Envoi de l'e-mail de résolution impossible pour l'incident %s", incident.id)
+            send_in_background(background_tasks, send_incident_resolved_email, user.email, user.name, incident.title)
 
     return incident
 
