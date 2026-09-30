@@ -113,7 +113,13 @@ def _diagnose(test_to: str | None) -> int:
         print(f"❌ Serveur injoignable : {e!r} (port bloqué par le réseau ? essayez 587 + starttls)")
         return 1
     if test_to:
-        _send([test_to], "Test d'envoi - API Groupe Genetics", "<p>Ceci est un e-mail de test : l'envoi SMTP fonctionne.</p>")
+        try:
+            _send([test_to], "Test d'envoi - API Groupe Genetics", "<p>Ceci est un e-mail de test : l'envoi SMTP fonctionne.</p>")
+        except (smtplib.SMTPRecipientsRefused, smtplib.SMTPSenderRefused) as e:
+            print(f"❌ Envoi refusé : {e}")
+            if MAIL_FROM.lower() != SMTP_USER.lower():
+                print(f"   MAIL_FROM ({MAIL_FROM}) doit être la boîte SMTP_USER ({SMTP_USER}) ou un de ses alias")
+            return 1
         print(f"✅ E-mail de test envoyé à {test_to}")
     return 0
 
