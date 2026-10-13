@@ -14,10 +14,15 @@ set_env() {
   mv "$1.tmp" "$1"
 }
 
-# 1. Vérification DNS : sans elle, la demande de certificat échoue
+# 1. Vérification DNS : sans elle, la demande de certificat échoue.
+# On interroge directement les serveurs DNS du domaine (comme Let's Encrypt) : les résolveurs, y compris
+# celui du serveur, peuvent garder une ancienne valeur en cache pendant des heures après une modification.
 IP="$(curl -fsS https://checkip.amazonaws.com | tr -d '[:space:]')"
+command -v dig >/dev/null 2>&1 || sudo apt-get install -y -qq bind9-dnsutils >/dev/null
+NS="$(dig +short NS "$DOMAIN" | head -1)"
+resolve() { dig +short A "$1" ${NS:+@"$NS"} | grep -E '^[0-9.]+$' | tail -1; }
 for name in "$DOMAIN" "www.$DOMAIN" "api.$DOMAIN"; do
-  resolved="$(getent ahostsv4 "$name" | awk 'NR == 1 { print $1 }')"
+  resolved="$(resolve "$name")"
   if [ "$resolved" != "$IP" ]; then
     echo "!! $name pointe vers '${resolved:-rien}' au lieu de $IP : corrigez le DNS puis relancez." >&2
     exit 1
@@ -70,7 +75,9 @@ $DOCKER compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile 2>/dev/
 
 echo "==> Obtention des certificats..."
 for _ in $(seq 1 30); do
-  if curl -fsS -o /dev/null "https://api.$DOMAIN/docs" 2>/dev/null && curl -fsS -o /dev/null "https://$DOMAIN" 2>/dev/null; then
+  # --resolve : teste ce serveur directement, quel que soit le cache DNS local
+  if curl -fsS -o /dev/null --resolve "api.$DOMAIN:443:127.0.0.1" "https://api.$DOMAIN/docs" 2>/dev/null &&
+    curl -fsS -o /dev/null --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN" 2>/dev/null; then
     cat <<DONE
 
 HTTPS activé :
