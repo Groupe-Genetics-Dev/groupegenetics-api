@@ -16,9 +16,13 @@ set_env() {
   mv "$1.tmp" "$1"
 }
 
-ask() { # ask <variable> <question> [secret]
+ask() { # ask <variable> <question> [secret]  (une réponse vide n'est acceptée que pour les questions non secrètes)
   local answer
-  if [ "${3:-}" = secret ]; then read -rsp "$2 : " answer </dev/tty; echo; else read -rp "$2 : " answer </dev/tty; fi
+  while :; do
+    if [ "${3:-}" = secret ]; then read -rsp "$2 : " answer </dev/tty; echo; else read -rp "$2 : " answer </dev/tty; fi
+    [ -n "$answer" ] || [ "${3:-}" != secret ] && break
+    echo "   La réponse ne peut pas être vide."
+  done
   printf -v "$1" '%s' "$answer"
 }
 

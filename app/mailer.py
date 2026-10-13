@@ -110,7 +110,8 @@ def _diagnose(test_to: str | None) -> int:
     print(f"Utilisateur: {SMTP_USER or '(vide)'}")
     print(f"Mot de passe: {len(SMTP_PASSWORD)} caractères"
           + (" - attention : espaces au début/à la fin" if SMTP_PASSWORD != SMTP_PASSWORD.strip() else "")
-          + (" - attention : guillemets inclus" if SMTP_PASSWORD[:1] in "\"'" else ""))
+          + (" - attention : guillemets inclus" if SMTP_PASSWORD and SMTP_PASSWORD[0] in "\"'" else "")
+          + (" - attention : mot de passe vide" if not SMTP_PASSWORD else ""))
     print(f"Expéditeur : {MAIL_FROM_NAME} <{MAIL_FROM}>")
     try:
         ip = socket.gethostbyname(SMTP_HOST)
